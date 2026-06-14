@@ -1,128 +1,214 @@
-# ESP8266 Deceleration Brake Augmenter
-> Auxiliary rear LED that brightens with deceleration using **ESP8266 + ADXL345** and an **ambient LDR**. Add‑on only — stock brake circuit untouched. Output is steady (no flashing) with smooth ramps.
+# vehicle-lighting-addon
 
-## TL;DR
-- Power-safe for 12 V automotive (fuse, reverse diode, TVS, buck).
-- Reads decel from ADXL345, tilt-compensated and filtered.
-- Ambient scaling via CdS photoresistor (Adafruit #161) on A0 with guardrails.
-- Drives 12 V LED strip with low-side MOSFET via PWM (2–4 kHz).
-- Small CLI to tune thresholds, gamma, floors, and filters.  
-- Designed for **steady-burning** behavior (no flash) to align with FMVSS/VA norms.
+An ESP8266-based auxiliary vehicle lighting controller that uses an accelerometer to detect deceleration and trigger additional brake-light behavior.
 
----
+This project was built as an add-on lighting controller for a vehicle overhead console installation. It monitors motion using an ADXL345 accelerometer, applies filtering and threshold logic, and drives auxiliary lighting output based on deceleration events. Brightness can also be scaled using ambient light input.
 
-## Photo: Overhead Console Install Area
-*(example placement for the ambient sensor; shield from dome/map lights with a small hood)*
+## Purpose
 
-![Overhead console install area](/mnt/data/f1f9cdb2-e2c2-4e32-a4d0-bbbb0ebd2321.png)
+This project exists to add smarter behavior to auxiliary vehicle lighting without replacing the factory brake light system.
 
----
+The controller is intended to:
+
+* detect meaningful deceleration events
+* trigger an auxiliary brake-light output
+* avoid false triggers from noise and vibration
+* allow tuning through software
+* support installation in a compact overhead-console form factor
 
 ## Features
-- Add-only; does **not** touch pedal/CAN or existing brake wiring.
-- Gravity LPF + dynamic accel extraction; **jerk** + **slew** limiting.
-- Ambient scaling bounded to safe range; updates only when nearly steady.
-- EEPROM config with CRC; watchdog-friendly loop.
-- Minimal dependencies (Wire, EEPROM).
+
+* ESP8266-based controller
+* ADXL345 accelerometer input
+* deceleration-based brake light triggering
+* filtered motion processing
+* PWM output for lighting control
+* EEPROM-backed configuration storage
+* ambient light scaling support
+* intended for compact in-vehicle installation
+
+## Project Status
+
+Functional prototype / hobbyist vehicle electronics project.
+
+This is a practical personal project, not a commercial automotive product.
+
+## Repository Structure
+
+This project is structured around the Arduino IDE.
+
+The main sketch file must remain:
+
+`vehicle-lighting-addon.ino`
+
+The Arduino IDE expects the sketch filename to match the folder name. Additional `.h`, `.c`, and `.cpp` files can be used, but the `.ino` file is still the primary entry point.
+
+A simple structure like this is expected:
+
+```text
+vehicle-lighting-addon/
+├── vehicle-lighting-addon.ino
+├── README.md
+├── LICENSE
+├── docs/
+│   ├── wiring-notes.md
+│   └── tuning-notes.md
+└── images/
+    └── installation-overview.png
+```
 
 ## Hardware Overview
-- **MCU:** ESP8266 (Wemos D1 mini / NodeMCU).  
-- **IMU:** ADXL345 (3.3 V, I²C `0x53`).  
-- **Ambient:** Adafruit #161 CdS LDR + 10 kΩ to GND, 1 kΩ series to A0, 0.1 µF A0→GND.  
-- **Power:** Automotive 12 V → 5 V buck, 1 A fuse, reverse Schottky, TVS (SMBJ26A), LC filter.  
-- **Driver:** Logic N‑MOSFET (e.g., FQP30N06L/IRLZ44N), 100 Ω gate, 100 kΩ pulldown; optional 100 Ω + 1 nF snubber.  
-- **LED:** 12 V red LED strip (rear-facing).  
-- **Connectors:** sealed, strain relief; star-ground at MOSFET source.
 
-## Default Pinout (ESP8266)
-| Function | Pin | Notes |
-|---|---|---|
-| I²C SDA | D2 | ADXL345 SDA |
-| I²C SCL | D1 | ADXL345 SCL |
-| PWM Out | D6 | MOSFET gate via 100 Ω |
-| Ambient ADC | A0 | LDR node via 1 kΩ; 0.1 µF to GND |
-| 3.3 V | 3V3 | ADXL345 + LDR divider |
-| 5 V In | 5V | From buck |
-| GND | G | Star ground to MOSFET source |
+### Main Components
 
-> **A0 Range:** Most dev boards scale A0 to **0–3.3 V**. Bare ESP8266 is **0–1.0 V**; if bare, add a divider (e.g., 240 kΩ/100 kΩ).
+* ESP8266 microcontroller
+* ADXL345 accelerometer
+* MOSFET or transistor-based lighting output stage
+* vehicle power input
+* optional ambient light input
+* auxiliary lighting load
 
----
+### Intended Installation Context
 
-## Wiring Diagram (Mermaid)
-> Logical layout; keep grounds star-connected, short I²C, and twisted LED supply if long.
+This project was designed around an overhead-console style installation, where the controller and accelerometer are mounted in the vehicle and connected to an auxiliary lighting output.
+
+## System Diagram
+
+```mermaid
+flowchart LR
+    VP[Vehicle Power] --> REG[Power Regulation / Supply]
+    REG --> MCU[ESP8266 Controller]
+    MCU <-- I2C --> ACCEL[ADXL345 Accelerometer]
+    MCU <-- ADC / Input --> AMBIENT[Ambient Light Input]
+    MCU --> PWM[PWM / Output Logic]
+    PWM --> DRIVER[Transistor / MOSFET Driver]
+    DRIVER --> AUX[Auxiliary Lighting Output]
+```
+
+## How It Works
+
+The controller continuously reads acceleration data, filters it, and estimates whether the vehicle is undergoing significant deceleration.
+
+If the measured deceleration exceeds a configured threshold, the controller activates the auxiliary lighting output. Ambient light input can be used to scale output brightness for day/night behavior.
+
+## Decision / Processing Flow
 
 ```mermaid
 flowchart TD
-    A[<i class="fa-solid fa-car-battery"></i> Car Battery]
-    B[5V Buck Converter]
-    C[<i class="fa-solid fa-microchip"></i> ESP8266]
-    D[Ambient Light Sensor]
-    E[Accelerometer]
-    F[MOSFET]
-    G[LED Strip]
-    
+    START[Startup] --> INIT[Initialize MCU, I2C, accelerometer, EEPROM, outputs]
+    INIT --> LOADCFG[Load saved configuration]
+    LOADCFG --> LOOP[Main loop]
 
-    A --> |12VDC| B
-    A --> |12VDC| F
-    B --> |5VDC| C
-    E --> |I2C| C
-    D --> |Analog Voltage| C
-    C --> |PWM| F
-    F --> |PWM 12VDC| G
+    LOOP --> READACCEL[Read accelerometer]
+    READACCEL --> FILTER[Apply filtering / smoothing]
+    FILTER --> CHECKDECEL{Deceleration threshold exceeded?}
 
+    CHECKDECEL -- No --> NORMAL[Keep normal output state]
+    CHECKDECEL -- Yes --> ACTIVATE[Activate auxiliary brake-light behavior]
+
+    NORMAL --> READAMBIENT[Read ambient light input]
+    ACTIVATE --> READAMBIENT
+
+    READAMBIENT --> SCALE[Scale brightness / output behavior]
+    SCALE --> UPDATE[Update PWM / output driver]
+    UPDATE --> LOOP
 ```
----
 
-## Build & Flash
-1. **Arduino IDE** (or arduino-cli) with **ESP8266 core** installed.  
-2. Board: *Wemos D1 mini* (or NodeMCU 1.0), CPU 80 MHz, 4M (1M SPIFFS/none).  
-3. Clone this repo, open `src/main.cpp`.  
-4. Verify the **pin defines** and **ADC range** flag near the top.  
-5. Compile & Upload. Serial at **115200**.
+## Installation Notes
 
-### First Power-Up Checklist
-- 12 V feed → **fuse** → **reverse diode** → **buck** → 5 V.  
-- No LED connected yet: verify idle PWM ≈ 0 %, sensor logs stream.  
-- Move the car or tilt the IMU: duty increases smoothly under decel.
+This project is intended as an add-on controller, not a replacement for OEM brake-light circuitry.
 
----
+Typical integration points may include:
 
-## Configuration (Serial CLI)
-Type a letter + params, then Enter:
-```
-p                        # print config
-s                        # save defaults
-t <min_g> <max_g> <γ>    # thresholds/gamma
-f <day_floor> <night_floor>
-a <amin> <amax> <tau_s>  # ambient scale & EMA
-r <jerk_gps> <slew_s> <grav_tau_s>
-```
-**Recommended start:** `t 0.03 0.50 2.2`, `f 0.18 0.10`, `a 0.35 1.00 3.0`, `r 1.5 1.5 1.2`.
+* switched vehicle power
+* ground
+* auxiliary lighting output path
+* accelerometer mounting point
+* optional ambient light sensor input
 
----
+### Important Installation Considerations
 
-## Tuning Procedure
-1. **Mounting:** IMU rigid, X forward; LDR behind 2–3 mm aperture with black tube to block dome/headlights.  
-2. **Ambient:** Park day/night; adjust `a` caps so max scale is 1.0 (day) and min ~0.35 (night).  
-3. **Thresholds:** Flat road coasting should be at floor; braking at city speeds should reach 80–100 %.  
-4. **Slew/Jerk:** Increase if PWM still jitters over bumps.
+* Mount the accelerometer securely.
+* Keep orientation consistent with the assumptions used in software.
+* Protect the power input appropriately.
+* Use a suitable driver stage for the lighting load.
+* Confirm current draw, wiring size, and thermal limits.
+* Avoid interfering with factory vehicle safety systems.
 
----
+## Tuning
 
-## Safety & Legal Notes
-- Output is **steady-burning** only; no flashing/wig‑wag.  
-- Use **red** LED, rear-facing; do not impair required lamps.  
-- Ensure robust power protection (fuse, TVS, reverse diode) and secure wiring (strain relief, IP67 enclosure where exposed).
+This project depends heavily on tuning and installation details.
 
----
+Items that may need adjustment include:
 
-## Troubleshooting
-- **No ADXL345:** check I²C address `0x53`, wiring, 3.3 V.  
-- **Flicker:** verify PWM freq (~3 kHz), add snubber if long LED leads, tighten grounds.  
-- **Ambient swings:** increase `tau_s`, lower rate, and ensure the LDR is shaded from direct headlight/dome light.
+* deceleration threshold
+* filter constants
+* trigger hold time
+* PWM output level
+* ambient brightness scaling
+* accelerometer orientation and axis interpretation
 
----
+Because different vehicles, mounting locations, and auxiliary lights behave differently, expect to perform some real-world tuning.
 
-## License & Disclaimer
-- MIT. You are responsible for legality and safe installation in your jurisdiction. Keep behavior compliant with steady stop‑lamp norms.
+## Development Notes
+
+This repo uses Arduino IDE conventions.
+
+If you are opening this project in the Arduino IDE:
+
+1. clone or download the repository
+2. open `vehicle-lighting-addon.ino`
+3. ensure the required libraries are installed
+4. select the correct ESP8266 board
+5. compile and upload
+
+If you later want to split logic into additional source files, that is fine, but the `.ino` file should remain in place as the primary sketch entry point.
+
+## Dependencies
+
+At minimum, this project depends on:
+
+* ESP8266 Arduino core
+* ADXL345 library or direct support code
+* EEPROM support
+* standard Arduino framework functions
+
+If you want, this section can later be updated with exact library names and versions.
+
+## Safety and Legal Notes
+
+This project controls vehicle lighting behavior. Use care.
+
+* This project is provided for hobbyist and experimental use.
+* It is not certified for road-legal or safety-critical applications.
+* Vehicle lighting laws vary by location.
+* The user is responsible for safe installation, legal compliance, and validation in their specific vehicle.
+* No warranty is provided.
+
+This project should be treated as an auxiliary add-on, not as a substitute for OEM braking, signaling, or safety systems.
+
+## Known Limitations
+
+* behavior depends on vehicle dynamics and mounting location
+* accelerometer orientation matters
+* false triggers are possible without proper tuning
+* ambient light scaling depends on sensor choice and installation
+* not validated as an automotive-grade production design
+
+## Planned Improvements
+
+Possible future improvements:
+
+* cleaner hardware documentation
+* installation illustration
+* tuning guide with example values
+* configuration reference
+* sample logs or test data
+* enclosure / bracket files
+* links to related CAD or GrabCAD models
+
+## License
+
+This project is released under the MIT License.
+
+You are free to use, modify, and adapt it for your own projects. No warranty is provided, and no ongoing support or maintenance is implied.
