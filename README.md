@@ -176,14 +176,16 @@ If you later want to split logic into additional source files, that is fine, but
 
 ## Dependencies
 
-At minimum, this project depends on:
+This project is written for the ESP8266 Arduino core.
 
-* ESP8266 Arduino core
-* ADXL345 library or direct support code
-* EEPROM support
-* standard Arduino framework functions
+Required:
 
-If you want, this section can later be updated with exact library names and versions.
+- ESP8266 Arduino core
+- standard Arduino framework functions
+- `Wire`
+- `EEPROM`
+
+The ADXL345 support is implemented directly in the sketch using I2C register reads/writes. No external ADXL345 library is currently required.
 
 ## Safety and Legal Notes
 
