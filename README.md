@@ -27,6 +27,16 @@ The controller is intended to:
 * ambient light scaling support
 * intended for compact in-vehicle installation
 
+## Concept Images
+
+### Overhead Console Electronics Area
+
+![Conceptual overhead console electronics installation](images/installation-overhead-conceptual.png)
+
+### Rear Window Auxiliary Light Location
+
+![Conceptual rear window auxiliary light installation](images/installation-rear-window-conceptual.png)
+
 ## Project Status
 
 Functional prototype / hobbyist vehicle electronics project.
