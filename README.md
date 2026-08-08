@@ -199,6 +199,79 @@ This project controls vehicle lighting behavior. Use care.
 
 This project should be treated as an auxiliary add-on, not as a substitute for OEM braking, signaling, or safety systems.
 
+## U.S. Vehicle Lighting Regulatory Notes
+
+This section is a high-level design note, not legal advice or a certification statement. Vehicle lighting rules are safety-critical and can vary by vehicle type, model year, installation method, and state/local law.
+
+### Federal baseline: FMVSS No. 108
+
+In the United States, the main federal lighting standard is **Federal Motor Vehicle Safety Standard No. 108**, formally titled **Lamps, Reflective Devices, and Associated Equipment**.
+
+Relevant source:
+
+- 49 CFR § 571.108 — FMVSS No. 108: https://www.ecfr.gov/current/title-49/subtitle-B/chapter-V/part-571/subpart-B/section-571.108
+
+Important design implications for this project:
+
+- Do not replace, disable, obscure, or interfere with the vehicle's required OEM stop lamps, turn signals, hazard lamps, tail lamps, reflectors, or center high-mounted stop lamp.
+- Treat this as an auxiliary lighting add-on only.
+- Required brake/stop lamps should continue to operate normally and independently of this controller.
+- Additional lighting must not impair the effectiveness of required lighting equipment.
+- Mounting location, color, brightness, activation behavior, and visibility matter.
+
+### Flashing, pulsing, or strobing behavior
+
+NHTSA has repeatedly interpreted FMVSS No. 108 to restrict flashing or strobing auxiliary lamps unless they are supplementing required lamps that are themselves permitted or required to flash, such as turn signals or hazard lamps.
+
+Relevant NHTSA interpretation examples:
+
+- NHTSA interpretation on strobing stop lamps: https://www.nhtsa.gov/interpretations/gf006332
+- NHTSA interpretation on flashing amber auxiliary lights and steady-burning auxiliary lamp interpretation: https://www.nhtsa.gov/interpretations/ncc-241023-001tsei-tima-letter-interpretation-571108-flashing-amber-lights-12-13
+- NHTSA interpretation discussing automatic activation and auxiliary lamp behavior: https://www.nhtsa.gov/interpretations/ncc-231121-001-autoliv-veoneer-spotlight-interpretation-1
+
+For this project, the conservative design approach is:
+
+- avoid strobing, flashing, pulsing, or rapid modulation of the auxiliary brake-light output
+- avoid attention-grabbing patterns that could distract or confuse other drivers
+- prefer steady-burning activation when a deceleration event is detected
+- ensure factory brake lights remain the primary braking signal
+
+### Deceleration-triggered auxiliary lighting
+
+This project detects deceleration using an accelerometer rather than directly reading the brake pedal switch. That makes validation especially important.
+
+Design considerations:
+
+- The trigger threshold should avoid false activation from vibration, bumps, road grade, or normal throttle changes.
+- Activation should not be so frequent, random, or attention-grabbing that it could confuse other road users.
+- The auxiliary light should not imply a turn signal, hazard signal, emergency vehicle signal, reverse lamp, or other regulated signal.
+- Behavior should be tested in controlled conditions before any road use.
+
+### State and local rules
+
+Federal rules are only part of the picture. State vehicle codes and inspection rules may impose additional restrictions on auxiliary lamps, colors, brightness, mounting height, rear-facing lights, flashing lights, and aftermarket modifications.
+
+Before using any version of this project on public roads:
+
+- check the vehicle code for the relevant state
+- check inspection requirements, if applicable
+- confirm whether auxiliary rear-facing brake/deceleration lamps are allowed
+- confirm allowed lamp colors and activation patterns
+- avoid blue, white rear-facing, or emergency-vehicle-like lighting unless specifically permitted
+
+### Practical compliance-oriented design stance
+
+The safest interpretation for this project is:
+
+- auxiliary add-on only
+- rear-facing red output only, where allowed
+- steady-burning when active
+- no strobe/flasher/pulse patterns
+- no interference with OEM brake/turn/hazard/tail lamps
+- no connection that disables or modifies required lighting behavior
+- conservative brightness and placement
+- user validation required for the specific vehicle and jurisdiction
+
 ## Known Limitations
 
 * behavior depends on vehicle dynamics and mounting location
